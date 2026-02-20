@@ -88,6 +88,11 @@ class Site {
     );
     const site = rows[0];
     if (!site) return null;
+    const [images] = await pool.execute(
+      "SELECT id, image_url as imageUrl, caption, is_primary as isPrimary FROM site_images WHERE site_id = ?",
+      [id],
+    );
+    site.images = images;
     site.siteProducts = await this.getSiteProducts(id);
     return site;
   }

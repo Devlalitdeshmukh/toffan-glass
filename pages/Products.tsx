@@ -4,6 +4,7 @@ import { Product } from '../types';
 import ProductService from '../services/productService';
 import { Link } from 'react-router-dom';
 import { getImageUrl } from '../utils/helpers';
+import ContentService from '../services/contentService';
 
 const Products: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,9 +12,32 @@ const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1554232456-8727aae0cfa4?auto=format&fit=crop&q=80&w=2000');
+  const [heroTitle, setHeroTitle] = useState('Premium Inventory');
+  const [heroDescription, setHeroDescription] = useState('Architectural-grade materials for high-end developments across Madhya Pradesh. BIS certified solutions since 2012.');
 
   useEffect(() => {
     fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const loadHeroImage = async () => {
+      try {
+        const pageContent = await ContentService.getContentPageByPageName('products_page');
+        if (pageContent?.title) setHeroTitle(pageContent.title);
+        if (pageContent?.metaDescription) setHeroDescription(pageContent.metaDescription);
+        const firstImage = Array.isArray(pageContent?.images) && pageContent.images.length > 0
+          ? (pageContent.images[0]?.imageUrl || pageContent.images[0]?.image_url || pageContent.images[0])
+          : null;
+        if (firstImage) {
+          setHeroImage(getImageUrl(firstImage));
+        }
+      } catch (error) {
+        console.error('Failed to load products hero image:', error);
+      }
+    };
+
+    loadHeroImage();
   }, []);
 
   const fetchProducts = async () => {
@@ -56,7 +80,7 @@ const Products: React.FC = () => {
       <div className="relative h-[60vh] flex items-center overflow-hidden bg-slate-900 mb-20">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1554232456-8727aae0cfa4?auto=format&fit=crop&q=80&w=2000" 
+            src={heroImage}
             className="w-full h-full object-cover opacity-40 grayscale"
             alt="Products Background"
             onError={(e) => {
@@ -72,10 +96,10 @@ const Products: React.FC = () => {
           <div className="max-w-4xl">
             <span className="text-blue-500 font-black uppercase tracking-[0.4em] text-xs mb-6 block">Industrial Grade Quality</span>
             <h1 className="text-7xl font-black text-white mb-8 tracking-tight leading-none">
-              Premium <span className="text-blue-500">Inventory</span>
+              {heroTitle}
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed font-medium max-w-2xl">
-              Architectural-grade materials for high-end developments across Madhya Pradesh. BIS certified solutions since 2012.
+              {heroDescription}
             </p>
           </div>
         </div>

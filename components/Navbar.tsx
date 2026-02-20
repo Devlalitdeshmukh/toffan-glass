@@ -17,6 +17,7 @@ const Navbar: FC<NavbarProps> = ({ user, onLogout }) => {
     { name: 'Home', path: '/' },
     { name: 'Products', path: '/products' },
     { name: 'Services', path: '/services' },
+    { name: 'Projects', path: '/projects' },
     { name: 'About Us', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];

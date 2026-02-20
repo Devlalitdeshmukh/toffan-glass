@@ -1,5 +1,9 @@
 const Inquiry = require('../models/Inquiry');
 const City = require('../models/City');
+const {
+    sendInquiryEmailNotification,
+    sendInquiryWhatsAppNotification
+} = require('../services/notificationService');
 
 const getAllInquiries = async (req, res) => {
     try {
@@ -41,7 +45,7 @@ const getInquiryById = async (req, res) => {
 
 const createInquiry = async (req, res) => {
     try {
-        const { name, email, mobile, message, cityId } = req.body;
+        const { name, email, mobile, message, cityId, subject } = req.body;
         
         // Validation
         if (!name || !email || !mobile || !message) {
@@ -85,6 +89,28 @@ const createInquiry = async (req, res) => {
         });
         
         const newInquiry = await Inquiry.getById(inquiryId);
+
+        // Send admin notifications after successful DB save (non-blocking to client success).
+        const notificationPayload = {
+            name,
+            email,
+            mobile,
+            subject: subject || 'General Inquiry',
+            message,
+            cityId,
+            createdAt: newInquiry?.createdAt || new Date().toISOString()
+        };
+
+        Promise.allSettled([
+            sendInquiryEmailNotification(notificationPayload),
+            sendInquiryWhatsAppNotification(notificationPayload)
+        ]).then((results) => {
+            const emailResult = results[0]?.status === 'fulfilled' ? results[0].value : { success: false, error: results[0]?.reason?.message };
+            const whatsappResult = results[1]?.status === 'fulfilled' ? results[1].value : { success: false, error: results[1]?.reason?.message };
+            console.log('Inquiry notification results:', { emailResult, whatsappResult });
+        }).catch((err) => {
+            console.error('Inquiry notification dispatch error:', err);
+        });
         
         res.status(201).json({
             message: 'Inquiry created successfully',

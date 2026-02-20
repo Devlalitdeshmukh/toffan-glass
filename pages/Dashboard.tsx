@@ -40,7 +40,16 @@ import {
   Wallet,
   Menu,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  FolderKanban,
+  Layers,
+  UserCircle2,
+  Palette,
+  ImageUp,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  BarChart as BarChartIcon,
+  LockKeyhole
 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ProductService from '../services/productService';
@@ -51,12 +60,16 @@ import PaymentService from '../services/paymentService';
 import CityService from '../services/cityService';
 import ContentService from '../services/contentService';
 import ContactService, { Contact as ContactInfo } from '../services/contactService';
+import ServiceService from '../services/serviceService';
 import ServicesManager from '../components/ServicesManager';
 import { formatDateForDisplay, formatDateForInput, formatStatus, getImageUrl } from '../utils/helpers';
+import ThemeService, { ThemeMode } from '../services/themeService';
 
 interface DashboardProps {
   user: any;
 }
+
+const MAX_CONTENT_IMAGE_BYTES = 20 * 1024 * 1024;
 
 // Reusable Modal Component for Dashboard
 const DashboardModal: React.FC<{
@@ -234,7 +247,7 @@ const InvoiceView: React.FC<{
         <div className="grid lg:grid-cols-3 gap-6">
           <div>
             <p className="text-xs font-black tracking-[0.18em] uppercase text-blue-600">Toffan</p>
-            <h2 className="text-2xl font-black text-slate-900">{invoice?.company?.name || 'Toffan Glass & Hardware Solutions'}</h2>
+            <h2 className="text-2xl font-black text-slate-900">{invoice?.company?.name || 'Toffan Glass Solutions'}</h2>
             <p className="text-sm text-slate-600 mt-1">{invoice?.company?.address || '-'}</p>
             <p className="text-sm text-slate-600">GST: {invoice?.company?.gstNumber || '-'}</p>
             <p className="text-sm text-slate-600">Contact: {invoice?.company?.contact || '-'} | {invoice?.company?.email || '-'}</p>
@@ -355,6 +368,144 @@ const InvoiceView: React.FC<{
   );
 };
 
+const AnimatedCount: React.FC<{ value: number }> = ({ value }) => {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const duration = 900;
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.floor(value * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return <>{display.toLocaleString()}</>;
+};
+
+const StatCard: React.FC<{ item: any }> = ({ item }) => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <div className="flex items-start justify-between">
+      <div className={`w-11 h-11 rounded-xl ${item.color} text-white flex items-center justify-center`}>
+        {item.icon}
+      </div>
+      <span className={`text-xs font-bold ${item.trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+        {item.trend >= 0 ? '+' : ''}{item.trend}%
+      </span>
+    </div>
+    <p className="mt-4 text-xs font-black uppercase tracking-wider text-slate-500">{item.label}</p>
+    <p className="mt-1 text-3xl font-black text-slate-900"><AnimatedCount value={Number(item.val || 0)} /></p>
+  </div>
+);
+
+const MiniBarChart: React.FC<{ data: Array<{ label: string; value: number }> }> = ({ data }) => {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div className="h-64 rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <BarChartIcon className="w-4 h-4 text-blue-600" />
+        <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Monthly Payments</h3>
+      </div>
+      <div className="h-[210px] flex items-end gap-2">
+        {data.map((item) => (
+          <div key={item.label} className="flex-1 flex flex-col items-center justify-end gap-2">
+            <div
+              className="w-full rounded-t-md bg-blue-500/85 hover:bg-blue-600 transition-colors"
+              style={{ height: `${Math.max(8, (item.value / max) * 150)}px` }}
+              title={`${item.label}: ₹${Math.round(item.value).toLocaleString()}`}
+            />
+            <span className="text-[10px] font-bold text-slate-500">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const MiniLineChart: React.FC<{ title: string; icon?: React.ReactNode; data: Array<{ label: string; value: number }> }> = ({ title, icon, data }) => {
+  const width = 520;
+  const height = 210;
+  const padding = 24;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const min = Math.min(...data.map(d => d.value), 0);
+  const range = max - min || 1;
+  const points = data.map((d, i) => {
+    const x = padding + (i * (width - padding * 2)) / Math.max(1, data.length - 1);
+    const y = height - padding - ((d.value - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="h-64 rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center gap-2 mb-4">
+        {icon}
+        <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">{title}</h3>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[200px]">
+        <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="3" />
+        {data.map((d, i) => {
+          const x = padding + (i * (width - padding * 2)) / Math.max(1, data.length - 1);
+          const y = height - padding - ((d.value - min) / range) * (height - padding * 2);
+          return <circle key={d.label} cx={x} cy={y} r="4" fill="#1d4ed8"><title>{`${d.label}: ${d.value}`}</title></circle>;
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const MiniPieChart: React.FC<{ data: Array<{ label: string; value: number; color: string }> }> = ({ data }) => {
+  const total = data.reduce((acc, cur) => acc + cur.value, 0) || 1;
+  let current = 0;
+  const radius = 70;
+  const center = 95;
+
+  const segments = data.map((item) => {
+    const start = (current / total) * Math.PI * 2;
+    current += item.value;
+    const end = (current / total) * Math.PI * 2;
+    const x1 = center + radius * Math.cos(start);
+    const y1 = center + radius * Math.sin(start);
+    const x2 = center + radius * Math.cos(end);
+    const y2 = center + radius * Math.sin(end);
+    const largeArc = end - start > Math.PI ? 1 : 0;
+    return { ...item, path: `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z` };
+  });
+
+  return (
+    <div className="h-64 rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <PieChartIcon className="w-4 h-4 text-blue-600" />
+        <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Projects Status</h3>
+      </div>
+      <div className="flex items-center gap-6">
+        <svg viewBox="0 0 190 190" className="h-[170px] w-[170px]">
+          {segments.map((seg) => (
+            <path key={seg.label} d={seg.path} fill={seg.color} stroke="#fff" strokeWidth="2">
+              <title>{`${seg.label}: ${seg.value}`}</title>
+            </path>
+          ))}
+          <circle cx={center} cy={center} r="34" fill="#ffffff" />
+        </svg>
+        <div className="space-y-2">
+          {data.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.label} ({item.value})
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -382,6 +533,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [currentPayment, setCurrentPayment] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    products: true,
+    projects: true,
+    payments: true,
+    content: true,
+  });
+  const [themeMode, setThemeMode] = useState<ThemeMode>(ThemeService.getTheme());
   
   // Confirmation modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -393,6 +551,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [itemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
+  const displayTabName = (tab: string) => {
+    if (tab === 'Sites') return 'Projects';
+    return tab;
+  };
+
   // Reset page when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -401,6 +564,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   useEffect(() => {
     setSidebarOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    ThemeService.applyTheme(themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     setProductFormMode('list');
@@ -419,6 +586,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         // Fetch all data
         const [
           productsResult,
+          servicesResult,
           usersResult,
           sitesResult,
           inquiriesResult,
@@ -426,6 +594,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           citiesResult
         ] = await Promise.all([
           ProductService.getAllProducts(),
+          ServiceService.getAllServices({ page: 1, limit: 500 }),
           UserService.getAllUsers(),
           SiteService.getAllSites(),
           InquiryService.getAllInquiries(),
@@ -446,25 +615,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             label: 'Total Products',
             val: productsResult.success ? productsResult.products.length : 0,
             icon: <Package className="w-5 h-5" />,
-            color: 'bg-blue-500'
+            color: 'bg-blue-600',
+            trend: 8
+          },
+          {
+            label: 'Total Projects',
+            val: sitesResult.success ? sitesResult.sites.length : 0,
+            icon: <FolderKanban className="w-5 h-5" />,
+            color: 'bg-indigo-600',
+            trend: 6
+          },
+          {
+            label: 'Total Services',
+            val: servicesResult.success ? (servicesResult.services || []).length : 0,
+            icon: <Layers className="w-5 h-5" />,
+            color: 'bg-cyan-600',
+            trend: 4
           },
           {
             label: 'Total Users',
             val: usersResult.success ? usersResult.users.length : 0,
             icon: <Users className="w-5 h-5" />,
-            color: 'bg-green-500'
+            color: 'bg-emerald-600',
+            trend: 5
           },
           {
-            label: 'Active Sites',
-            val: sitesResult.success ? sitesResult.sites.filter((s: any) => s.status === 'WORKING').length : 0,
-            icon: <Home className="w-5 h-5" />,
-            color: 'bg-purple-500'
+            label: 'Total Payments',
+            val: paymentsResult.success ? paymentsResult.payments.length : 0,
+            icon: <Wallet className="w-5 h-5" />,
+            color: 'bg-violet-600',
+            trend: 9
           },
           {
-            label: 'Pending Inquiries',
-            val: inquiriesResult.success ? inquiriesResult.inquiries.filter((i: any) => i.status === 'NEW').length : 0,
+            label: 'Total Inquiries',
+            val: inquiriesResult.success ? inquiriesResult.inquiries.length : 0,
             icon: <MessageSquare className="w-5 h-5" />,
-            color: 'bg-orange-500'
+            color: 'bg-amber-600',
+            trend: 3
           }
         ];
         setStats(calculatedStats);
@@ -741,6 +928,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const canManageUsers = user?.role === 'ADMIN';
   const canManageSites = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const canManageInquiries = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  const canManagePayments = user?.role === 'ADMIN' || user?.role === 'STAFF';
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -753,7 +941,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       )}
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 p-4 transition-all duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 p-4 transition-all duration-300 lg:static lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } ${sidebarCollapsed ? 'lg:w-20 w-72' : 'lg:w-64 w-72'}`}
       >
@@ -767,33 +955,148 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div>
 
-        <nav className="space-y-2">
-          {[
-            'Overview', 
-            'Products', 
-            'Users', 
-            'Sites', 
-            'Inquiries', 
-            'Payments',
-            'About Us',
-            'Contact Us',
-            'Services'
-          ].map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setActiveTab(item);
-                setSidebarOpen(false);
-              }}
-              className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${
-                activeTab === item ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span className={sidebarCollapsed ? 'lg:hidden' : ''}>{item}</span>
-              {activeTab === item && <ChevronRight className="w-4 h-4" />}
-            </button>
-          ))}
+        <nav className="space-y-2 flex-1 overflow-y-auto">
+          <button
+            onClick={() => { setActiveTab('Overview'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${activeTab === 'Overview' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><BarChart3 className="w-4 h-4" />Overview</span>
+            {activeTab === 'Overview' && <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => setExpandedMenus((prev) => ({ ...prev, products: !prev.products }))}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${['Products', 'Products Reports'].includes(activeTab) ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><Package className="w-4 h-4" />Products</span>
+            <ChevronRight className={`w-4 h-4 transition-transform ${expandedMenus.products ? 'rotate-90' : ''}`} />
+          </button>
+          {expandedMenus.products && (
+            <>
+              <button
+                onClick={() => { setActiveTab('Products'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Products' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Products
+              </button>
+              <button
+                onClick={() => { setActiveTab('Products Reports'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Products Reports' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Products Reports
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => setExpandedMenus((prev) => ({ ...prev, projects: !prev.projects }))}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${['Sites', 'Project Reports'].includes(activeTab) ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><FolderKanban className="w-4 h-4" />Projects</span>
+            <ChevronRight className={`w-4 h-4 transition-transform ${expandedMenus.projects ? 'rotate-90' : ''}`} />
+          </button>
+          {expandedMenus.projects && (
+            <>
+              <button
+                onClick={() => { setActiveTab('Sites'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Sites' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Projects
+              </button>
+              <button
+                onClick={() => { setActiveTab('Project Reports'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Project Reports' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Project Reports
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => { setActiveTab('Services'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${activeTab === 'Services' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><Layers className="w-4 h-4" />Services</span>
+            {activeTab === 'Services' && <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('Users'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${activeTab === 'Users' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><Users className="w-4 h-4" />Users</span>
+            {activeTab === 'Users' && <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => setExpandedMenus((prev) => ({ ...prev, payments: !prev.payments }))}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${['Payments', 'Payments Reports'].includes(activeTab) ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><Wallet className="w-4 h-4" />Payments</span>
+            <ChevronRight className={`w-4 h-4 transition-transform ${expandedMenus.payments ? 'rotate-90' : ''}`} />
+          </button>
+          {expandedMenus.payments && (
+            <>
+              <button
+                onClick={() => { setActiveTab('Payments'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Payments' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Payments
+              </button>
+              <button
+                onClick={() => { setActiveTab('Payments Reports'); setSidebarOpen(false); }}
+                className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Payments Reports' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Payments Reports
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => { setActiveTab('Inquiries'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${activeTab === 'Inquiries' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><MessageSquare className="w-4 h-4" />Inquiries</span>
+            {activeTab === 'Inquiries' && <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => setExpandedMenus((prev) => ({ ...prev, content: !prev.content }))}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${['Home Page', 'Products Page', 'Services Page', 'Projects Page', 'About Page', 'Contact Page', 'Contact Directory', 'Privacy Policy'].includes(activeTab) ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <span className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}><FileText className="w-4 h-4" />Content</span>
+            <ChevronRight className={`w-4 h-4 transition-transform ${expandedMenus.content ? 'rotate-90' : ''}`} />
+          </button>
+          {expandedMenus.content && (
+            <>
+              <button onClick={() => { setActiveTab('Home Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Home Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Home Page</button>
+              <button onClick={() => { setActiveTab('Products Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Products Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Products Page</button>
+              <button onClick={() => { setActiveTab('Services Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Services Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Services Page</button>
+              <button onClick={() => { setActiveTab('Projects Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Projects Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Projects Page</button>
+              <button onClick={() => { setActiveTab('About Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'About Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>About Page</button>
+              <button onClick={() => { setActiveTab('Contact Page'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Contact Page' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Contact Page</button>
+              <button onClick={() => { setActiveTab('Contact Directory'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Contact Directory' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Contact Directory</button>
+              <button onClick={() => { setActiveTab('Privacy Policy'); setSidebarOpen(false); }} className={`ml-6 w-[calc(100%-1.5rem)] text-left px-3 rounded-xl text-xs font-semibold transition-colors ${activeTab === 'Privacy Policy' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Privacy Policy</button>
+            </>
+          )}
         </nav>
+
+        <div className="border-t border-slate-200 pt-3 mt-3 space-y-2">
+          <button
+            onClick={() => { setActiveTab('Profile'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'Profile' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <UserCircle2 className="w-4 h-4" />
+            <span className={sidebarCollapsed ? 'lg:hidden' : ''}>Profile</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('Settings'); setSidebarOpen(false); }}
+            className={`w-full text-left px-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'Settings' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <Settings className="w-4 h-4" />
+            <span className={sidebarCollapsed ? 'lg:hidden' : ''}>Settings</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -838,8 +1141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   {sidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
                 </button>
               <div>
-                <h1 className="font-bold text-slate-900">{activeTab} Dashboard</h1>
-                <p className="text-slate-500">Manage your {activeTab.toLowerCase()} here.</p>
+                <h1 className="font-bold text-slate-900">{displayTabName(activeTab)} Dashboard</h1>
+                <p className="text-slate-500">Manage your {displayTabName(activeTab).toLowerCase()} here.</p>
               </div>
               </div>
               <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-sm font-medium text-slate-700 flex items-center">
@@ -881,23 +1184,77 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             {/* Overview Tab */}
             {activeTab === 'Overview' && (
               <>
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                  {stats.map((stat, i) => (
-                    <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-50 flex flex-col items-center text-center group hover:shadow-xl hover:shadow-slate-100 transition-all duration-500">
-                      <div className={`${stat.color} w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg rotate-3 group-hover:rotate-6 transition-transform`}>
-                        {stat.icon}
-                      </div>
-                      <p className="text-slate-400 text-xs font-black uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                      <p className="text-3xl font-black text-slate-900 tracking-tighter">{stat.val}</p>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 mb-6">
+                  {stats.map((stat, index) => (
+                    <StatCard key={index} item={stat} />
                   ))}
                 </div>
 
-                <div className="grid lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+                  <MiniBarChart
+                    data={(() => {
+                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                      const now = new Date();
+                      return months.map((_, idx) => {
+                        const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+                        const label = d.toLocaleString('en-US', { month: 'short' });
+                        const value = payments
+                          .filter((p: any) => {
+                            const dt = new Date(p.paymentDate || p.createdAt || p.created_at);
+                            return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+                          })
+                          .reduce((sum: number, p: any) => sum + Number(p.paidAmount || p.amount || 0), 0);
+                        return { label, value };
+                      });
+                    })()}
+                  />
+                  <MiniPieChart
+                    data={[
+                      { label: 'Completed', value: sites.filter((s: any) => s.status === 'COMPLETED').length, color: '#10b981' },
+                      { label: 'Working', value: sites.filter((s: any) => s.status === 'WORKING').length, color: '#3b82f6' },
+                      { label: 'Pending', value: sites.filter((s: any) => s.status === 'COMING_SOON').length, color: '#f59e0b' },
+                    ]}
+                  />
+                  <MiniLineChart
+                    title="Revenue Trend"
+                    icon={<LineChartIcon className="w-4 h-4 text-blue-600" />}
+                    data={(() => {
+                      const now = new Date();
+                      return Array.from({ length: 6 }).map((_, idx) => {
+                        const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+                        const label = d.toLocaleString('en-US', { month: 'short' });
+                        const value = payments
+                          .filter((p: any) => {
+                            const dt = new Date(p.paymentDate || p.createdAt || p.created_at);
+                            return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+                          })
+                          .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+                        return { label, value };
+                      });
+                    })()}
+                  />
+                  <MiniLineChart
+                    title="Inquiries Trend"
+                    icon={<LineChartIcon className="w-4 h-4 text-blue-600" />}
+                    data={(() => {
+                      const now = new Date();
+                      return Array.from({ length: 6 }).map((_, idx) => {
+                        const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+                        const label = d.toLocaleString('en-US', { month: 'short' });
+                        const value = inquiries.filter((i: any) => {
+                          const dt = new Date(i.createdAt || i.created_at);
+                          return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+                        }).length;
+                        return { label, value };
+                      });
+                    })()}
+                  />
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-6">
                   {/* Recent Products */}
-                  <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-50">
-                    <div className="flex items-center justify-between mb-10">
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Recent Products</h2>
                         <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Latest additions to catalog</p>
@@ -928,8 +1285,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   </div>
 
                   {/* Recent Inquiries */}
-                  <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-50">
-                    <div className="flex items-center justify-between mb-10">
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-6">
                        <div>
                         <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Active Inquiries</h2>
                         <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Requiring immediate attention</p>
@@ -962,6 +1319,72 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   </div>
                 </div>
               </>
+            )}
+
+            {activeTab === 'Products Reports' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Products Reports</h2>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1 mb-6">Inventory, valuation and category split</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Total Products</p><p className="text-2xl font-black text-slate-900">{products.length}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Total Stock Units</p><p className="text-2xl font-black text-slate-900">{products.reduce((a: number, b: any) => a + Number(b.stock || 0), 0)}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Inventory Value</p><p className="text-2xl font-black text-slate-900">₹{products.reduce((a: number, b: any) => a + (Number(b.price || 0) * Number(b.stock || 0)), 0).toLocaleString()}</p></div>
+                </div>
+                <MiniLineChart
+                  title="Category Trend (Top Categories by Count)"
+                  icon={<LineChartIcon className="w-4 h-4 text-blue-600" />}
+                  data={Object.entries(products.reduce((acc: Record<string, number>, p: any) => {
+                    const key = p.category || 'Uncategorized';
+                    acc[key] = (acc[key] || 0) + 1;
+                    return acc;
+                  }, {})).slice(0, 6).map(([label, value]) => ({ label: String(label).slice(0, 3), value: Number(value) }))}
+                />
+              </div>
+            )}
+
+            {activeTab === 'Project Reports' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Project Reports</h2>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1 mb-6">Status and execution insights</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Total Projects</p><p className="text-2xl font-black text-slate-900">{sites.length}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Working</p><p className="text-2xl font-black text-blue-700">{sites.filter((s: any) => s.status === 'WORKING').length}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Completed</p><p className="text-2xl font-black text-emerald-700">{sites.filter((s: any) => s.status === 'COMPLETED').length}</p></div>
+                </div>
+                <MiniPieChart
+                  data={[
+                    { label: 'Completed', value: sites.filter((s: any) => s.status === 'COMPLETED').length, color: '#10b981' },
+                    { label: 'Working', value: sites.filter((s: any) => s.status === 'WORKING').length, color: '#3b82f6' },
+                    { label: 'Pending', value: sites.filter((s: any) => s.status === 'COMING_SOON').length, color: '#f59e0b' },
+                  ]}
+                />
+              </div>
+            )}
+
+            {activeTab === 'Payments Reports' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Payments Reports</h2>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1 mb-6">Collections, balance and status distribution</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Total Records</p><p className="text-2xl font-black text-slate-900">{payments.length}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Paid Amount</p><p className="text-2xl font-black text-emerald-700">₹{payments.reduce((a: number, p: any) => a + Number(p.paidAmount || 0), 0).toLocaleString()}</p></div>
+                  <div className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500 uppercase font-bold">Balance Due</p><p className="text-2xl font-black text-rose-700">₹{payments.reduce((a: number, p: any) => a + Number(p.balanceAmount || 0), 0).toLocaleString()}</p></div>
+                </div>
+                <MiniBarChart
+                  data={Array.from({ length: 6 }).map((_, idx) => {
+                    const now = new Date();
+                    const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+                    const label = d.toLocaleString('en-US', { month: 'short' });
+                    const value = payments
+                      .filter((p: any) => {
+                        const dt = new Date(p.paymentDate || p.createdAt || p.created_at);
+                        return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+                      })
+                      .reduce((sum: number, p: any) => sum + Number(p.paidAmount || p.amount || 0), 0);
+                    return { label, value };
+                  })}
+                />
+              </div>
             )}
 
             {activeTab === 'Products' && canManageProducts && productFormMode === 'list' && (
@@ -1112,7 +1535,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Site Infrastructure</h2>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Project Infrastructure</h2>
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Managing {filteredSites.length} active projects</p>
                   </div>
                   <button 
@@ -1123,7 +1546,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     }}
                   >
                     <Plus className="w-5 h-5 mr-3" />
-                    New Project Site
+                    New Project
                   </button>
                 </div>
                 
@@ -1245,7 +1668,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             )}
 
             {/* Payments Tab */}
-            {activeTab === 'Payments' && canManageUsers && paymentFormMode === 'list' && (
+            {activeTab === 'Payments' && canManagePayments && paymentFormMode === 'list' && (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                   <div>
@@ -1406,7 +1829,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             )}
 
-            {activeTab === 'Payments' && canManageUsers && paymentFormMode !== 'list' && (
+            {activeTab === 'Payments' && canManagePayments && paymentFormMode !== 'list' && (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
                 <PaymentForm
                   payment={paymentFormMode === 'edit' ? currentPayment : undefined}
@@ -1424,8 +1847,67 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             )}
 
-            {/* About Us, Contact Us, Services Tabs - Content Management */}
-            {(activeTab === 'About Us' || activeTab === 'Contact Us' || activeTab === 'Services') && (
+            {activeTab === 'Profile' && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-900 to-blue-900 p-8 text-white shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-2xl font-black">
+                        {String(user?.name || 'A').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-200">Admin / Staff Profile</p>
+                        <h2 className="text-2xl font-black tracking-tight">{user?.name || 'N/A'}</h2>
+                        <p className="text-sm text-slate-200 mt-1">{user?.email || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest">
+                      {user?.role || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Display Name</p>
+                    <p className="text-base font-bold text-slate-900">{user?.name || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Email</p>
+                    <p className="text-base font-bold text-slate-900 break-all">{user?.email || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Role</p>
+                    <p className="text-base font-bold text-slate-900">{user?.role || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Mobile</p>
+                    <p className="text-base font-bold text-slate-900">{user?.mobile || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Settings' && (
+              <SettingsSection
+                themeMode={themeMode}
+                onThemeChange={(mode: ThemeMode) => {
+                  setThemeMode(mode);
+                  ThemeService.setTheme(mode);
+                }}
+              />
+            )}
+
+            {/* Dynamic content tabs */}
+            {(activeTab === 'Services' ||
+              activeTab === 'Home Page' ||
+              activeTab === 'Products Page' ||
+              activeTab === 'Services Page' ||
+              activeTab === 'Projects Page' ||
+              activeTab === 'About Page' ||
+              activeTab === 'Contact Page' ||
+              activeTab === 'Contact Directory' ||
+              activeTab === 'Privacy Policy') && (
               <ContentManagementSection activeTab={activeTab} user={user} />
             )}
 
@@ -1436,7 +1918,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 setCurrentPayment(null);
               }}
               title="Invoice"
-              maxWidthClass="modal-lg"
+              maxWidthClass="modal-xl"
             >
               {currentPayment && (
                 <InvoiceView
@@ -3280,6 +3762,241 @@ const PaymentForm: React.FC<{
 };
 
 // Content Management Section Component
+const SettingsSection: React.FC<{
+  themeMode: ThemeMode;
+  onThemeChange: (mode: ThemeMode) => void;
+}> = ({ themeMode, onThemeChange }) => {
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [heroFiles, setHeroFiles] = useState<Record<string, File | null>>({
+    home: null,
+    about_us: null,
+    other: null,
+  });
+  const [heroPreviews, setHeroPreviews] = useState<Record<string, string>>({});
+  const [heroExisting, setHeroExisting] = useState<Record<string, string | null>>({});
+  const [savingHero, setSavingHero] = useState(false);
+
+  useEffect(() => {
+    const loadCurrent = async () => {
+      const keys = ['home', 'about_us', 'products_page'];
+      const next: Record<string, string | null> = {};
+      for (const key of keys) {
+        try {
+          const page = await ContentService.getContentPageByPageName(key);
+          const image = Array.isArray(page?.images) && page.images.length > 0
+            ? (page.images[0]?.imageUrl || page.images[0]?.image_url || page.images[0])
+            : null;
+          const normalizedKey = key === 'products_page' ? 'other' : key;
+          next[normalizedKey] = image ? getImageUrl(image) : null;
+        } catch {
+          const normalizedKey = key === 'products_page' ? 'other' : key;
+          next[normalizedKey] = null;
+        }
+      }
+      setHeroExisting(next);
+    };
+    loadCurrent();
+  }, []);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      toast.error('Please fill all password fields');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New password and confirm password do not match');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error('Change password API not available in backend yet');
+        return;
+      }
+
+      toast.success('Password updated successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      console.error('Failed to update password:', error);
+      toast.error('Failed to update password');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const handleHeroFileChange = (key: string, file: File | null) => {
+    if (file && file.size > MAX_CONTENT_IMAGE_BYTES) {
+      toast.error('Image exceeds 20MB limit. Please upload a smaller file.');
+      return;
+    }
+    setHeroFiles((prev) => ({ ...prev, [key]: file }));
+    if (file) {
+      setHeroPreviews((prev) => ({ ...prev, [key]: URL.createObjectURL(file) }));
+    } else {
+      setHeroPreviews((prev) => ({ ...prev, [key]: '' }));
+    }
+  };
+
+  const saveHeroSettings = async () => {
+    setSavingHero(true);
+    const mappings = [
+      { pageName: 'home', title: 'Home Page', content: 'Home page content' },
+      { pageName: 'about_us', title: 'About Page', content: 'About page content' },
+    ];
+
+    try {
+      for (const map of mappings) {
+        const file = heroFiles[map.pageName];
+        if (!file) continue;
+        const existing = await ContentService.getContentPageByPageName(map.pageName);
+        if (existing) {
+          await ContentService.updateContentPage(
+            map.pageName,
+            { title: existing.title || map.title, content: existing.content || map.content, metaDescription: existing.metaDescription || map.title, isActive: true },
+            [file],
+            []
+          );
+        } else {
+          await ContentService.createContentPage(
+            { pageName: map.pageName as any, title: map.title, content: map.content, metaDescription: map.title, isActive: true },
+            [file]
+          );
+        }
+      }
+
+      if (heroFiles.other) {
+        const otherTargets = [
+          { pageName: 'products_page', title: 'Products Page' },
+          { pageName: 'services', title: 'Services Page' },
+          { pageName: 'projects_page', title: 'Projects Page' },
+          { pageName: 'contact_us', title: 'Contact Page' },
+        ];
+
+        for (const target of otherTargets) {
+          const existing = await ContentService.getContentPageByPageName(target.pageName);
+          if (existing) {
+            await ContentService.updateContentPage(
+              target.pageName,
+              {
+                title: existing.title || target.title,
+                content: existing.content || `${target.title} content`,
+                metaDescription: existing.metaDescription || '',
+                isActive: true
+              },
+              [heroFiles.other],
+              []
+            );
+          } else {
+            await ContentService.createContentPage(
+              {
+                pageName: target.pageName as any,
+                title: target.title,
+                content: `${target.title} content`,
+                metaDescription: '',
+                isActive: true
+              },
+              [heroFiles.other]
+            );
+          }
+        }
+      }
+
+      toast.success('Hero image settings updated');
+      window.dispatchEvent(new CustomEvent('hero:updated'));
+    } catch (error) {
+      console.error('Failed to save hero settings:', error);
+      toast.error('Failed to save hero image settings');
+    } finally {
+      setSavingHero(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-6">Settings</h2>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <form onSubmit={handlePasswordSubmit} className="rounded-2xl border border-slate-200 p-5 space-y-4">
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-700 flex items-center gap-2"><LockKeyhole className="w-4 h-4" />Change Password</h3>
+            <input type="password" placeholder="Current Password" className="w-full px-4 py-3 border border-slate-200 rounded-xl" value={passwordData.currentPassword} onChange={(e) => setPasswordData((p) => ({ ...p, currentPassword: e.target.value }))} />
+            <input type="password" placeholder="New Password" className="w-full px-4 py-3 border border-slate-200 rounded-xl" value={passwordData.newPassword} onChange={(e) => setPasswordData((p) => ({ ...p, newPassword: e.target.value }))} />
+            <input type="password" placeholder="Confirm New Password" className="w-full px-4 py-3 border border-slate-200 rounded-xl" value={passwordData.confirmPassword} onChange={(e) => setPasswordData((p) => ({ ...p, confirmPassword: e.target.value }))} />
+            <button type="submit" disabled={savingPassword} className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-60">
+              {savingPassword ? 'Updating...' : 'Update Password'}
+            </button>
+          </form>
+
+          <div className="rounded-2xl border border-slate-200 p-5 space-y-4">
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-700 flex items-center gap-2"><Palette className="w-4 h-4" />Theme Mode</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { label: 'Light Mode', value: 'light' as ThemeMode },
+                { label: 'Dark Mode', value: 'dark' as ThemeMode },
+                { label: 'Orange Theme', value: 'orange' as ThemeMode },
+              ].map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => onThemeChange(mode.value)}
+                  className={`px-4 py-3 rounded-xl text-sm font-bold border transition-colors ${themeMode === mode.value ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-700 flex items-center gap-2 mb-5"><ImageUp className="w-4 h-4" />Frontend Hero Image Settings</h3>
+        <div className="grid lg:grid-cols-3 gap-5">
+          {[
+            { key: 'home', label: 'Home Page Hero Image' },
+            { key: 'about_us', label: 'About Page Hero Image' },
+            { key: 'other', label: 'Other Page Hero Images' },
+          ].map((item) => (
+            <div key={item.key} className="rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs font-black uppercase tracking-wider text-slate-700 mb-3">{item.label}</p>
+              <div className="mb-3 h-28 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                {(heroPreviews[item.key] || heroExisting[item.key]) ? (
+                  <img src={heroPreviews[item.key] || (heroExisting[item.key] as string)} alt={item.label} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-slate-500">No image</div>
+                )}
+              </div>
+              <input type="file" accept="image/*" onChange={(e) => handleHeroFileChange(item.key, e.target.files?.[0] || null)} className="w-full text-xs" />
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={savingHero}
+          onClick={saveHeroSettings}
+          className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-60"
+        >
+          {savingHero ? 'Saving...' : 'Save Hero Image Settings'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ContentManagementSection = ({ activeTab, user = null }) => {
   const [content, setContent] = useState<any>(null);
   const [title, setTitle] = useState('');
@@ -3307,17 +4024,25 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
   const [orderPriority, setOrderPriority] = useState(0);
   const [allContacts, setAllContacts] = useState<any[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
   
   const pageNameMap = {
+    'Home Page': 'home',
+    'Products Page': 'products_page',
+    'Services Page': 'services',
+    'Projects Page': 'projects_page',
+    'About Page': 'about_us',
+    'Contact Page': 'contact_us',
     'About Us': 'about_us',
     'Contact Us': 'contact_us',
-    'Services': 'services'
+    'Services': 'services',
+    'Privacy Policy': 'privacy_policy'
   };
   
   const currentPageName = pageNameMap[activeTab];
   
   useEffect(() => {
-    if (activeTab === 'Contact Us') {
+    if (activeTab === 'Contact Directory') {
       fetchContactInfo();
     } else {
       fetchContent();
@@ -3328,6 +4053,7 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
     try {
       setLoading(true);
       setError('');
+      setContent(null);
       const contentData = await ContentService.getContentPageByPageName(currentPageName);
       if (contentData) {
         setContent(contentData);
@@ -3343,10 +4069,12 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
         }
       } else {
         // Set defaults if no content exists
+        setContent(null);
         setTitle(activeTab);
         setContentText('');
         setMetaDescription('');
         setIsActive(true);
+        setExistingImagesToKeep([]);
       }
     } catch (err) {
       console.error('Error fetching content:', err);
@@ -3385,27 +4113,37 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
       setSaving(true);
       setError('');
       
-      if (activeTab === 'Contact Us') {
+      if (activeTab === 'Contact Directory') {
         // For Contact Us tab, just refresh the contact info
         await fetchContactInfo();
         toast.success(`${activeTab} information refreshed successfully!`);
       } else {
         const contentPageData = {
           title,
-          content: contentText,
+          content: (contentText || metaDescription || title || activeTab).trim(),
           metaDescription,
           isActive
         };
         
         if (content) {
           // Update existing content
-          if (activeTab !== 'Contact Us') {
-            await ContentService.updateContentPage(currentPageName, contentPageData, imageFiles, existingImagesToKeep);
+          if (activeTab !== 'Contact Directory') {
+            try {
+              await ContentService.updateContentPage(currentPageName, contentPageData, imageFiles, existingImagesToKeep);
+            } catch (updateErr: any) {
+              // Fallback: if record was deleted or missing, create it instead.
+              const msg = String(updateErr?.message || '').toLowerCase();
+              if (msg.includes('not found')) {
+                await ContentService.createContentPage({ ...contentPageData, pageName: currentPageName }, imageFiles.length ? imageFiles : undefined);
+              } else {
+                throw updateErr;
+              }
+            }
           }
         } else {
           // Create new content
-          if (activeTab !== 'Contact Us') {
-            if (activeTab === 'Services' && imageFiles.length > 0) {
+          if (activeTab !== 'Contact Directory') {
+            if (imageFiles.length > 0) {
               await ContentService.createContentPage({ ...contentPageData, pageName: currentPageName }, imageFiles);
             } else {
               await ContentService.createContentPage({ ...contentPageData, pageName: currentPageName });
@@ -3507,7 +4245,7 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
       
       {activeTab === 'Services' ? (
         <ServicesManager user={user} />
-      ) : activeTab === 'Contact Us' ? (
+      ) : activeTab === 'Contact Directory' ? (
         // Contact management UI
         <div className="space-y-6">
           <div className="mb-8">
@@ -3645,7 +4383,7 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
           </div>
         </div>
       ) : (
-        // Content management UI for About Us and Services
+        // Content management UI for dynamic page content
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
@@ -3669,10 +4407,8 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
             />
           </div>
           
-          {/* Show image upload only for Services */}
-          {activeTab === 'Services' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Service Images</label>
+          <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Hero Image (Drag & Drop Supported)</label>
               <div className="space-y-3">
                 {/* Display existing images */}
                 {existingImagesToKeep.length > 0 && (
@@ -3730,30 +4466,59 @@ const ContentManagementSection = ({ activeTab, user = null }) => {
                   </div>
                 )}
                 
-                {/* Image upload input */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      const newFiles = Array.from(e.target.files);
-                      setImageFiles(prev => [...prev, ...newFiles]);
-                      
-                      // Create preview URLs
-                      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragActive(true); }}
+                  onDragLeave={() => setIsDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragActive(false);
+                    const dropped = Array.from(e.dataTransfer.files || [])
+                      .filter((f) => f.type.startsWith('image/'))
+                      .filter((f) => {
+                        if (f.size > MAX_CONTENT_IMAGE_BYTES) {
+                          toast.error(`${f.name} exceeds 20MB limit and was skipped.`);
+                          return false;
+                        }
+                        return true;
+                      });
+                    if (dropped.length > 0) {
+                      setImageFiles(prev => [...prev, ...dropped]);
+                      const newPreviews = dropped.map(file => URL.createObjectURL(file));
                       setImagePreviews(prev => [...prev, ...newPreviews]);
                     }
                   }}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-                <p className="text-xs text-slate-500">Select multiple images for the services</p>
+                  className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50'}`}
+                >
+                  <p className="text-sm font-semibold text-slate-700">Drop hero images here</p>
+                  <p className="text-xs text-slate-500 mt-1">or choose from your device</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const newFiles = Array.from(e.target.files).filter((f) => {
+                          if (f.size > MAX_CONTENT_IMAGE_BYTES) {
+                            toast.error(`${f.name} exceeds 20MB limit and was skipped.`);
+                            return false;
+                          }
+                          return true;
+                        });
+                        if (newFiles.length === 0) return;
+                        setImageFiles(prev => [...prev, ...newFiles]);
+                        const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+                        setImagePreviews(prev => [...prev, ...newPreviews]);
+                      }
+                    }}
+                    className="mt-3 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Upload one or more hero images for this page.</p>
               </div>
-            </div>
-          )}
+          </div>
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Meta Description </label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Short Description</label>
             <textarea
               rows={3}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"

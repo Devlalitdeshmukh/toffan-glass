@@ -7,6 +7,8 @@ import CityService from '../services/cityService';
 import ContactService, { Contact as ContactInfo } from '../services/contactService';
 import { User } from '../types';
 import { getImageUrl } from '../utils/helpers';
+import ContentService from '../services/contentService';
+import { toast } from 'react-toastify';
 
 interface ContactProps {
   user?: User | null;
@@ -20,6 +22,7 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
     name: '',
     email: '',
     mobile: '',
+    subject: '',
     city: '',
     message: productFromState ? `I'm interested in inquiring about ${productFromState}.` : ''
   });
@@ -27,6 +30,9 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [cities, setCities] = useState<any[]>([]);
+  const [heroTitle, setHeroTitle] = useState('Reach Out');
+  const [heroDescription, setHeroDescription] = useState('Connect with our expert technical advisors for project estimates, site measurements, and custom glass solutions.');
+  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&q=80&w=2000');
 
   // Autofill if user is logged in
   useEffect(() => {
@@ -70,6 +76,14 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
           emails: emailContacts,
           addresses: addressContacts
         });
+
+        const contactPage = await ContentService.getContentPageByPageName('contact_us');
+        if (contactPage?.title) setHeroTitle(contactPage.title);
+        if (contactPage?.metaDescription) setHeroDescription(contactPage.metaDescription);
+        const heroImg = Array.isArray(contactPage?.images) && contactPage.images.length > 0
+          ? (contactPage.images[0]?.imageUrl || contactPage.images[0]?.image_url || contactPage.images[0])
+          : null;
+        if (heroImg) setHeroImage(getImageUrl(heroImg));
         
         setLoadingContactInfo(false);
       } catch (error) {
@@ -83,28 +97,51 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name || !formData.email || !formData.mobile || !formData.city || !formData.message) {
+      setSubmitError('Please fill all required fields.');
+      toast.error('Please fill all required fields.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setSubmitError('Please enter a valid email address.');
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    if (!/^[0-9]{10}$/.test(formData.mobile)) {
+      setSubmitError('Mobile number must be exactly 10 digits.');
+      toast.error('Mobile number must be exactly 10 digits.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError('');
+    setSubmitSuccess(false);
     
     const result = await InquiryService.createInquiry({
       name: formData.name,
       email: formData.email,
       mobile: formData.mobile,
+      subject: formData.subject || 'General Inquiry',
       cityId: formData.city,
       message: formData.message
     });
     
     if (result.success) {
       setSubmitSuccess(true);
+      toast.success('Inquiry submitted successfully. Our team will contact you soon.');
       setFormData({
         name: '',
         email: '',
         mobile: '',
+        subject: '',
         city: '',
         message: ''
       });
     } else {
       setSubmitError(result.error);
+      toast.error(result.error || 'Failed to submit inquiry.');
     }
     
     setIsSubmitting(false);
@@ -116,7 +153,7 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
       <div className="relative h-[60vh] flex items-center overflow-hidden bg-slate-900 mb-20">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&q=80&w=2000" 
+            src={heroImage}
             className="w-full h-full object-cover opacity-40 grayscale"
             alt="Contact Background"
             onError={(e) => {
@@ -132,10 +169,10 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
           <div className="max-w-4xl">
             <span className="text-blue-500 font-black uppercase tracking-[0.4em] text-xs mb-6 block">Direct Consultation</span>
             <h1 className="text-7xl font-black text-white mb-8 tracking-tight leading-none">
-              Reach <span className="text-blue-500">Out</span>
+              {heroTitle}
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed font-medium max-w-2xl">
-              Connect with our expert technical advisors for project estimates, site measurements, and custom glass solutions.
+              {heroDescription}
             </p>
           </div>
         </div>
@@ -251,6 +288,17 @@ const Contact: React.FC<ContactProps> = ({ user }) => {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   value={formData.mobile}
                   onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                  placeholder="Enter inquiry subject"
                 />
               </div>
 

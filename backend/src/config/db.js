@@ -278,7 +278,7 @@ const initializeDatabase = async () => {
         // Insert default content pages
         await connection.execute(`
             INSERT INTO content_pages (page_name, title, content, meta_description) VALUES 
-            ('about_us', 'About Us', 'Welcome to Toffan Glass & Hardware Solutions. We are a leading provider of glass and hardware solutions in Madhya Pradesh.', 'Learn more about our company and mission'),
+            ('about_us', 'About Us', 'Welcome to Toffan Glass Solutions. We are a leading provider of glass and hardware solutions in Madhya Pradesh.', 'Learn more about our company and mission'),
             ('contact_us', 'Contact Us', 'Get in touch with us for any inquiries or project consultations.', 'Contact information and inquiry form'),
             ('services', 'Our Services', 'We offer a wide range of glass and hardware solutions including installation, repair, and maintenance services.', 'Details about our services')
         `);

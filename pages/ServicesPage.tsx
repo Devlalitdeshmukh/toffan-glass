@@ -11,6 +11,9 @@ const ServicesPage = () => {
   const [servicesList, setServicesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000');
+  const [heroTitle, setHeroTitle] = useState('Architectural Solutions');
+  const [heroDescription, setHeroDescription] = useState('Elevating architectural standards across Central India with premium glass fabrication and hardware excellence.');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,6 +23,14 @@ const ServicesPage = () => {
         const pageData = await ContentService.getContentPageByPageName('services');
         if (pageData) {
           setContent(pageData);
+          if (pageData.title) setHeroTitle(pageData.title);
+          if (pageData.metaDescription) setHeroDescription(pageData.metaDescription);
+          const heroImageValue = Array.isArray(pageData?.images) && pageData.images.length > 0
+            ? (pageData.images[0]?.imageUrl || pageData.images[0]?.image_url || pageData.images[0])
+            : null;
+          if (heroImageValue) {
+            setHeroImage(getImageUrl(heroImageValue));
+          }
         }
 
         // Fetch dynamic services
@@ -68,7 +79,7 @@ const ServicesPage = () => {
       <div className="relative h-[60vh] flex items-center overflow-hidden bg-slate-900 mb-24">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000" 
+            src={heroImage}
             className="w-full h-full object-cover opacity-40 grayscale"
             alt="Hero Background"
           />
@@ -79,10 +90,10 @@ const ServicesPage = () => {
           <div className="max-w-4xl">
             <span className="text-blue-500 font-black uppercase tracking-[0.4em] text-xs mb-6 block animate-fade-in">Precision Engineering</span>
             <h1 className="text-7xl font-black text-white mb-8 tracking-tight leading-none">
-              Architectural <span className="text-blue-500">Solutions</span>
+              {heroTitle}
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed font-medium max-w-2xl">
-              Elevating architectural standards across Central India with premium glass fabrication and hardware excellence.
+              {heroDescription}
             </p>
           </div>
         </div>
@@ -99,7 +110,7 @@ const ServicesPage = () => {
             />
             ) : (
               <div className="text-slate-500 text-xl leading-relaxed space-y-8 font-medium">
-                <p>Welcome to Toffan Glass & Hardware Solutions' Services page.</p>
+                <p>Welcome to Toffan Glass Solutions' Services page.</p>
                 <p>We offer a wide range of glass and hardware solutions including installation, repair, and maintenance services.</p>
                 <p>Explore our core specializations below:</p>
               </div>

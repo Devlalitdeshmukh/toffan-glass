@@ -7,7 +7,7 @@ export const getSmartQuotation = async (inquiryDetails: string) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are a sales assistant for Toffan Glass & Hardware. Analyze this customer inquiry and provide a professional, helpful response including estimated requirements or product suggestions: "${inquiryDetails}"`,
+      contents: `You are a sales assistant for Toffan Glass Solutions. Analyze this customer inquiry and provide a professional, helpful response including estimated requirements or product suggestions: "${inquiryDetails}"`,
       config: {
         systemInstruction: "You are an expert in glass and hardware architecture. Keep responses concise and sales-driven.",
       }

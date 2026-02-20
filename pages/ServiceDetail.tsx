@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
   ChevronRight, 
@@ -16,6 +17,7 @@ import {
   Layers
 } from 'lucide-react';
 import ServiceService from '../services/serviceService';
+import SiteService from '../services/siteService';
 import { toast } from 'react-toastify';
 import { formatDateForDisplay, formatStatus, getImageUrl } from '../utils/helpers';
 import * as LucideIcons from 'lucide-react';
@@ -31,6 +33,7 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [relatedProjects, setRelatedProjects] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -54,6 +57,37 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ user }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchRelatedProjects = async () => {
+      if (!service?.title) return;
+      const normalize = (value: any) => String(value || '').trim().toLowerCase();
+      const currentServiceTitle = normalize(service.title);
+
+      try {
+        const res = await SiteService.getSitesWithImages();
+        if (!res.success || !Array.isArray(res.sites)) return;
+
+        const filtered = res.sites.filter((site: any) => {
+          const siteItems = Array.isArray(site?.siteProducts)
+            ? site.siteProducts
+            : [];
+
+          return siteItems.some((item: any) => {
+            const type = String(item?.type || item?.itemType || '').toUpperCase();
+            const name = normalize(item?.itemName || item?.name);
+            return type === 'SERVICE' && name === currentServiceTitle;
+          });
+        });
+
+        setRelatedProjects(filtered.slice(0, 6));
+      } catch (error) {
+        console.error('Failed to fetch related projects:', error);
+      }
+    };
+
+    fetchRelatedProjects();
+  }, [service]);
 
   const handleInquiry = async () => {
     setInquiryLoading(true);
@@ -82,8 +116,19 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ user }) => {
   if (!service) return null;
 
   const images = service.images && service.images.length > 0
-    ? service.images.map((img: any) => img.imageUrl)
+    ? service.images
+        .map((img: any) => (typeof img === 'string' ? img : img?.imageUrl || img?.image_url || null))
+        .filter(Boolean)
     : [''];
+
+  const getProjectImage = (site: any) => {
+    if (!Array.isArray(site?.images) || site.images.length === 0) return null;
+    const first = site.images[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first.imageUrl === 'string') return first.imageUrl;
+    if (first && typeof first.image_url === 'string') return first.image_url;
+    return null;
+  };
 
   return (
     <div className="detail-page">
@@ -224,6 +269,40 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ user }) => {
                     </span>
                   </div>
                </div>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 mb-4">Related Projects</h3>
+              {relatedProjects.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {relatedProjects.map((project) => (
+                    <article key={project.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <img
+                        src={getImageUrl(getProjectImage(project))}
+                        alt={project.name}
+                        className="h-36 w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = getImageUrl(null);
+                        }}
+                      />
+                      <div className="p-4">
+                        <h4 className="text-base font-bold text-slate-900">{project.name}</h4>
+                        <p className="mt-1 text-sm text-slate-500 line-clamp-2">
+                          {project.description || 'Professional project with advanced glass installation solutions.'}
+                        </p>
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="mt-3 inline-flex items-center text-sm font-bold text-blue-600 hover:text-blue-700"
+                        >
+                          View Project <ChevronRight className="w-4 h-4 ml-1" />
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No related projects mapped to this service yet.</p>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">

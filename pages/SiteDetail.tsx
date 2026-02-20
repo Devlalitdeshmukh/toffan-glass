@@ -96,6 +96,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ user }) => {
 
   const siteMeta = parseSiteMeta();
   const siteInfo = siteMeta?.siteInfo || {};
+  const lineItemsFromMeta = Array.isArray(siteMeta?.lineItems) ? siteMeta.lineItems : [];
 
   const overviewText = (() => {
     if (siteMeta?.notes && typeof siteMeta.notes === 'string' && siteMeta.notes.trim()) {
@@ -110,9 +111,24 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ user }) => {
 
   const images = Array.isArray(site.images)
     ? site.images
-        .map((img: any) => (typeof img === 'string' ? img : img?.imageUrl || null))
+        .map((img: any) => (typeof img === 'string' ? img : img?.imageUrl || img?.image_url || null))
         .filter(Boolean)
     : [];
+
+  const normalizedItems = (() => {
+    const fromSite = Array.isArray((site as any)?.siteProducts) ? (site as any).siteProducts : [];
+    const source = fromSite.length > 0 ? fromSite : lineItemsFromMeta;
+    return source.map((item: any, index: number) => ({
+      id: item?.id || `item-${index}`,
+      type: String(item?.type || item?.itemType || 'PRODUCT').toUpperCase(),
+      itemName: item?.itemName || item?.name || 'Unnamed Item',
+      quantity: Number(item?.quantity || 0),
+      unit: item?.unit || '',
+    }));
+  })();
+
+  const productsUsed = normalizedItems.filter((item: any) => item.type !== 'SERVICE');
+  const servicesUsed = normalizedItems.filter((item: any) => item.type === 'SERVICE');
 
   return (
     <div className="detail-page">
@@ -120,8 +136,8 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ user }) => {
       <div className="detail-breadcrumb">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex items-center text-sm font-medium text-slate-500">
-            <button onClick={() => navigate('/')} className="hover:text-blue-600 transition-colors flex items-center">
-               <ArrowLeft className="w-4 h-4 mr-2" /> Home
+            <button onClick={() => navigate('/projects')} className="hover:text-blue-600 transition-colors flex items-center">
+               <ArrowLeft className="w-4 h-4 mr-2" /> Projects
             </button>
             <ChevronRight className="w-4 h-4 mx-3 opacity-30" />
             <span className="text-slate-400">Projects</span>
@@ -276,6 +292,44 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ user }) => {
                     <span className="text-slate-700 font-bold">{Array.isArray((site as any)?.siteProducts) ? (site as any).siteProducts.length : 0}</span>
                   </div>
                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 mb-8 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 mb-4">Services Used</h3>
+                {servicesUsed.length > 0 ? (
+                  <ul className="space-y-3">
+                    {servicesUsed.map((item: any) => (
+                      <li key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                        <span className="font-semibold text-slate-800">{item.itemName}</span>
+                        <span className="text-xs font-bold text-slate-500">
+                          {item.quantity > 0 ? `${item.quantity}${item.unit ? ` ${item.unit}` : ''}` : 'Included'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No services mapped to this project yet.</p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 mb-4">Products Used</h3>
+                {productsUsed.length > 0 ? (
+                  <ul className="space-y-3">
+                    {productsUsed.map((item: any) => (
+                      <li key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                        <span className="font-semibold text-slate-800">{item.itemName}</span>
+                        <span className="text-xs font-bold text-slate-500">
+                          {item.quantity > 0 ? `${item.quantity}${item.unit ? ` ${item.unit}` : ''}` : 'Included'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">No products mapped to this project yet.</p>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">

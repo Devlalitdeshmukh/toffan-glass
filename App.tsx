@@ -13,12 +13,23 @@ import AboutUs from './pages/AboutUs';
 import ProductDetail from './pages/ProductDetail';
 import SiteDetail from './pages/SiteDetail';
 import ServiceDetail from './pages/ServiceDetail';
+import Projects from './pages/Projects';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { User, UserRole } from './types';
 import AuthService from './services/authService';
 import { ShieldCheck, Mail, Lock, User as UserIcon, Phone, MapPin, Loader2, Sparkles, Building2, Facebook, Linkedin, Instagram } from 'lucide-react';
 import ContentService from './services/contentService';
 import ContactService from './services/contactService';
 import ProductService from './services/productService';
+import ThemeService from './services/themeService';
+
+const stripHtml = (value: string = '') => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const normalizeBrandText = (value: string = '') =>
+  value
+    .replace(/vishesh glasses private limited/gi, 'Toffan Glass Solutions')
+    .replace(/vishvesh glasses private limited/gi, 'Toffan Glass Solutions')
+    .replace(/vishesh glasses/gi, 'Toffan Glass Solutions')
+    .replace(/vishvesh glasses/gi, 'Toffan Glass Solutions');
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -54,6 +65,7 @@ const App: React.FC = () => {
     
     checkAuth();
     fetchFooterData();
+    ThemeService.applyTheme(ThemeService.getTheme());
   }, []);
 
   const fetchFooterData = async () => {
@@ -103,6 +115,15 @@ const App: React.FC = () => {
     setUser(null);
   };
 
+  const footerAboutExcerpt = (() => {
+    const raw = typeof footerData.about?.content === 'string' ? footerData.about.content : '';
+    const cleaned = normalizeBrandText(stripHtml(raw));
+    if (!cleaned) {
+      return 'Leading supplier of premium toughened glass and architectural hardware in MP. Precision engineering since 2012.';
+    }
+    return cleaned.length > 150 ? `${cleaned.substring(0, 150)}...` : cleaned;
+  })();
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -125,11 +146,14 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail user={user} />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<SiteDetail user={user} />} />
             <Route path="/sites/:id" element={<SiteDetail user={user} />} />
             <Route path="/contact" element={<Contact user={user} />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/services/:id" element={<ServiceDetail user={user} />} />
             <Route path="/about" element={<AboutUs />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             
             <Route path="/login" element={
               user ? (
@@ -184,8 +208,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-400">
-                  {footerData.about?.content?.substring(0, 150) || "Leading supplier of premium toughened glass and architectural hardware in MP. Precision engineering since 2012."}
-                  {footerData.about?.content?.length > 150 ? "..." : ""}
+                  {footerAboutExcerpt}
                 </p>
                 <div className="flex space-x-4">
                   <a href="#" className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors">
@@ -222,7 +245,7 @@ const App: React.FC = () => {
                   <li><a href="/#/services" className="hover:text-blue-400 transition-colors">Our Services</a></li>
                   <li><a href="/#/about" className="hover:text-blue-400 transition-colors">About Company</a></li>
                   <li><a href="/#/contact" className="hover:text-blue-400 transition-colors">Contact Support</a></li>
-                  <li><a href="/#/about" className="hover:text-blue-400 transition-colors">Certifications</a></li>
+                  <li><a href="/#/privacy-policy" className="hover:text-blue-400 transition-colors">Privacy Policy</a></li>
                 </ul>
               </div>
               
@@ -266,7 +289,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="pt-12 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
-              <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} Toffan Glass Solutions Private Limited. All Rights Reserved.</p>
+              <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} Toffan Glass Solutions. All Rights Reserved.</p>
               <div className="flex items-center space-x-2 bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700/50">
                 <ShieldCheck className="w-4 h-4 text-green-500" />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ISO 9001:2015 Certified</span>

@@ -7,6 +7,9 @@ const AboutUs = () => {
   const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1543269664-76bc3997d9ea?auto=format&fit=crop&q=80&w=2000');
+  const [heroTitle, setHeroTitle] = useState('A Legacy of Precision');
+  const [heroDescription, setHeroDescription] = useState('From Indore\'s industrial heart to the skyline of Central India, our heritage is built on safety, quality, and aesthetic perfection.');
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -15,11 +18,19 @@ const AboutUs = () => {
         const data = await ContentService.getContentPageByPageName('about_us');
         if (data) {
           setContent(data);
+          if (data.title) setHeroTitle(data.title);
+          if (data.metaDescription) setHeroDescription(data.metaDescription);
+          const hero = Array.isArray(data?.images) && data.images.length > 0
+            ? (data.images[0]?.imageUrl || data.images[0]?.image_url || data.images[0])
+            : null;
+          if (hero) {
+            setHeroImage(getImageUrl(hero));
+          }
         } else {
           // Default content if not found in DB
           setContent({
             title: 'About Us',
-            content: '<p>Toffan Glass & Hardware emerged from Indore\'s rising industrial demand for safety glass that didn\'t compromise on aesthetic vision.</p><p>Today, we operate state-of-the-art toughening plants that serve builders from Bhopal to Jabalpur, ensuring every pane of glass meets IS 2553 standards.</p>',
+            content: '<p>Toffan Glass Solutions emerged from Indore\'s rising industrial demand for safety glass that didn\'t compromise on aesthetic vision.</p><p>Today, we operate state-of-the-art toughening plants that serve builders from Bhopal to Jabalpur, ensuring every pane of glass meets IS 2553 standards.</p>',
             id: 'default'
           });
         }
@@ -29,7 +40,7 @@ const AboutUs = () => {
         // Set default content
         setContent({
           title: 'About Us',
-          content: '<p>Toffan Glass & Hardware emerged from Indore\'s rising industrial demand for safety glass that didn\'t compromise on aesthetic vision.</p><p>Today, we operate state-of-the-art toughening plants that serve builders from Bhopal to Jabalpur, ensuring every pane of glass meets IS 2553 standards.</p>',
+          content: '<p>Toffan Glass Solutions emerged from Indore\'s rising industrial demand for safety glass that didn\'t compromise on aesthetic vision.</p><p>Today, we operate state-of-the-art toughening plants that serve builders from Bhopal to Jabalpur, ensuring every pane of glass meets IS 2553 standards.</p>',
           id: 'default'
         });
       } finally {
@@ -68,7 +79,7 @@ const AboutUs = () => {
       <div className="relative h-[60vh] flex items-center overflow-hidden bg-slate-900 mb-24">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1543269664-76bc3997d9ea?auto=format&fit=crop&q=80&w=2000" 
+            src={heroImage}
             className="w-full h-full object-cover opacity-40 grayscale"
             alt="About Background"
             onError={(e) => {
@@ -84,10 +95,10 @@ const AboutUs = () => {
           <div className="max-w-4xl">
             <span className="text-blue-500 font-black uppercase tracking-[0.4em] text-xs mb-6 block animate-fade-in">Established Excellence</span>
             <h1 className="text-7xl font-black text-white mb-8 tracking-tight leading-none">
-              A Legacy of <span className="text-blue-500">Precision</span>
+              {heroTitle}
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed font-medium max-w-2xl">
-              From Indore's industrial heart to the skyline of Central India, our heritage is built on safety, quality, and aesthetic perfection.
+              {heroDescription}
             </p>
           </div>
         </div>

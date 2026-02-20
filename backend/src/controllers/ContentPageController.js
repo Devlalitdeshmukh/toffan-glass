@@ -1,4 +1,36 @@
 const ContentPage = require("../models/ContentPage");
+const fs = require("fs");
+const path = require("path");
+
+const normalizeExistingImages = (existingImages) => {
+  if (Array.isArray(existingImages)) {
+    return existingImages
+      .map((img) => (typeof img === "string" ? img.trim() : ""))
+      .filter(Boolean);
+  }
+
+  if (typeof existingImages === "string") {
+    const trimmed = existingImages.trim();
+    if (!trimmed) return [];
+    return trimmed
+      .split(",")
+      .map((img) => img.trim())
+      .filter(Boolean);
+  }
+
+  return null;
+};
+
+const deleteLocalImageFile = (imageUrl) => {
+  if (typeof imageUrl !== "string" || !imageUrl.startsWith("/uploads/")) return;
+  const absolutePath = path.join(__dirname, "../..", imageUrl.replace(/^\/+/, ""));
+  if (!fs.existsSync(absolutePath)) return;
+  fs.unlink(absolutePath, (err) => {
+    if (err) {
+      console.error("Failed to delete content page image file:", absolutePath, err.message);
+    }
+  });
+};
 
 const getAllContentPages = async (req, res) => {
   try {
@@ -23,9 +55,10 @@ const getContentPageByPageName = async (req, res) => {
     const contentPage = await ContentPage.getByPageName(pageName);
 
     if (!contentPage) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: "Content page not found",
+        data: null,
       });
     }
 
@@ -96,7 +129,7 @@ const createContentPage = async (req, res) => {
 const updateContentPage = async (req, res) => {
   try {
     const { pageName } = req.params;
-    const { title, content, metaDescription, isActive } = req.body;
+    const { title, content, metaDescription, isActive, existingImages } = req.body;
 
     // Handle specifications if it's sent as a string
     let parsedMetaDesc = metaDescription;
@@ -123,6 +156,20 @@ const updateContentPage = async (req, res) => {
       metaDescription: parsedMetaDesc,
       isActive,
     });
+
+    const keepImages = normalizeExistingImages(existingImages);
+    if (keepImages !== null) {
+      const currentImages = await ContentPage.getImagesByPageId(existingPage.id);
+      const keepSet = new Set(keepImages);
+      const imagesToDelete = currentImages
+        .map((img) => img.imageUrl)
+        .filter((url) => !keepSet.has(url));
+
+      if (imagesToDelete.length > 0) {
+        await ContentPage.deleteImagesByUrls(existingPage.id, imagesToDelete);
+        imagesToDelete.forEach(deleteLocalImageFile);
+      }
+    }
 
     // Handle image uploads if any
     if (req.files && req.files.length > 0) {

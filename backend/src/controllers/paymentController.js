@@ -162,7 +162,7 @@ const getInvoicePayload = async (payment) => {
   return {
     company: {
       logoText: 'TOFFAN',
-      name: 'Toffan Glass & Hardware Solutions',
+      name: 'Toffan Glass Solutions',
       address: 'Vijay Nagar, Indore, Madhya Pradesh, India',
       gstNumber: '23ABCDE1234F1Z5',
       contact: '+91 98930 00000',

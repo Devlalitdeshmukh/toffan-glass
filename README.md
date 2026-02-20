@@ -1,6 +1,6 @@
-# Toffan Glass & Hardware Solutions Portal
+# Toffan Glass Solutions Portal
 
-A modern web application for Toffan Glass & Hardware Solutions with user authentication, product management, and dashboard functionality.
+A modern web application for Toffan Glass Solutions with user authentication, product management, and dashboard functionality.
 
 ## Features
 
@@ -188,4 +188,4 @@ For production deployment:
 
 ## License
 
-This project is proprietary software for Toffan Glass & Hardware Solutions. 
+This project is proprietary software for Toffan Glass Solutions. 

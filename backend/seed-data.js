@@ -268,7 +268,7 @@ const seed = async () => {
 
     // 3. Update Services Page Content
     const servicesPageContent = `
-      <p>Toffan Glass & Hardware Solutions offers a comprehensive suite of professional services tailored for architectural excellence. Our expertise spans from initial design consultation to precision installation and ongoing maintenance. We pride ourselves on delivering solutions that integrate safety, functionality, and modern aesthetics.</p>
+      <p>Toffan Glass Solutions offers a comprehensive suite of professional services tailored for architectural excellence. Our expertise spans from initial design consultation to precision installation and ongoing maintenance. We pride ourselves on delivering solutions that integrate safety, functionality, and modern aesthetics.</p>
       <p>Our commitment to quality is evident in every project we undertake. Whether it is a high-rise commercial facade using structural spider fittings or a luxury residential shower enclosure, we bring the same level of precision and engineering excellence. We utilize state-of-the-art cutting, polishing, and toughening technologies to ensure that every pane of glass meets rigorous safety standards.</p>
       <p>In addition to fabrication and supply, our team of certified installers ensures that every piece of hardware—from hydraulic floor springs to smart glass tracks—is fitted to perfection. We understand the nuances of architectural hardware and provide expert guidance to architects and developers across Madhya Pradesh to choose the right materials for their unique structural requirements.</p>
     `;
