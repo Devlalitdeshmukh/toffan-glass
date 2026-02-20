@@ -96,7 +96,8 @@ const Projects: React.FC = () => {
               (e.target as HTMLImageElement).src = getImageUrl(null);
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/60 via-slate-900/35 to-slate-900/20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/58 via-slate-900/35 to-slate-900/18" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/26 via-transparent to-slate-900/8" />
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight">{heroTitle}</h1>

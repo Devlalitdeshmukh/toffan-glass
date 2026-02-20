@@ -81,7 +81,7 @@ const Products: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <img 
             src={heroImage}
-            className="w-full h-full object-cover opacity-40 grayscale"
+            className="w-full h-full object-cover opacity-70 brightness-110 contrast-110"
             alt="Products Background"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
@@ -89,7 +89,8 @@ const Products: React.FC = () => {
               target.src = getImageUrl(null);
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/60 to-slate-950"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/58 via-slate-900/35 to-slate-900/18"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/26 via-transparent to-slate-900/8"></div>
         </div>
         
         <div className="max-w-7xl mx-auto px-4 relative z-10 w-full pt-20">
@@ -98,7 +99,7 @@ const Products: React.FC = () => {
             <h1 className="text-7xl font-black text-white mb-8 tracking-tight leading-none">
               {heroTitle}
             </h1>
-            <p className="text-slate-400 text-xl leading-relaxed font-medium max-w-2xl">
+            <p className="text-slate-100 text-xl leading-relaxed font-medium max-w-2xl">
               {heroDescription}
             </p>
           </div>
