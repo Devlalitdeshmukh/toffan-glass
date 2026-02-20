@@ -1,0 +1,48 @@
+
+TOFFAN GLASS BACKEND ARCHITECTURE
+================================
+
+DIRECTORY STRUCTURE:
+backend/
+├── src/
+│   ├── config/
+│   │   ├── db.js          # MySQL connection pool
+│   │   └── passport.js    # JWT strategy
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── productController.js
+│   │   ├── inquiryController.js
+│   │   ├── siteController.js
+│   │   └── paymentController.js
+│   ├── middleware/
+│   │   ├── auth.js        # Role-based access control
+│   │   └── upload.js      # Multer image processing
+│   ├── models/            # Sequelize or raw SQL queries
+│   │   ├── User.js
+│   │   ├── Product.js
+│   │   └── Site.js
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── productRoutes.js
+│   │   └── api.js         # Main router
+│   └── app.js             # Express app entry
+├── .env                   # DB_HOST, DB_USER, DB_PASS, JWT_SECRET
+└── package.json
+
+API ENDPOINTS:
+- POST /api/auth/login     -> Returns JWT & user object
+- GET /api/products        -> List all products
+- POST /api/inquiries      -> Save customer lead
+- PATCH /api/sites/:id     -> (Staff only) Update site progress
+- GET /api/payments        -> (Admin only) Financial summary
+
+SAMPLE DB SEED (MySQL):
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255),
+  role ENUM('ADMIN', 'STAFF', 'CUSTOMER'),
+  city VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users (name, role, city) VALUES ('Admin Toffan', 'ADMIN', 'Indore');

@@ -1,0 +1,241 @@
+
+import React, { useState, useEffect } from 'react';
+import { UserRole } from '../types';
+import DashboardService from '../services/dashboardService';
+import { 
+  BarChart3, 
+  Map as MapIcon, 
+  CreditCard, 
+  Package, 
+  User as UserIcon, 
+  ChevronRight,
+  TrendingUp,
+  AlertCircle,
+  Plus,
+  Edit,
+  Trash2,
+  Loader2
+} from 'lucide-react';
+
+interface DashboardProps {
+  user: any;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+  const [activeTab, setActiveTab] = useState('Overview');
+  const [stats, setStats] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError('');
+      
+      try {
+        // Fetch dashboard stats
+        const statsResult = await DashboardService.getDashboardStats();
+        if (statsResult.success) {
+          setStats(statsResult.stats);
+        }
+        
+        // Fetch users if admin
+        if (user?.role === 'ADMIN') {
+          const usersResult = await DashboardService.getUsers();
+          if (usersResult.success) {
+            setUsers(usersResult.users);
+          }
+        }
+        
+        // Fetch products
+        const productsResult = await DashboardService.getProducts();
+        if (productsResult.success) {
+          setProducts(productsResult.products);
+        }
+      } catch (err) {
+        setError('Failed to load dashboard data');
+        console.error('Dashboard data fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [user?.role]);
+
+  // Simulated site data (this could be expanded to fetch from backend)
+  const recentSites = [
+    { id: '1', name: 'Indore IT Park Office', status: 'Working', progress: 65, city: 'Indore' },
+    { id: '2', name: 'Bhopal Residency', status: 'Completed', progress: 100, city: 'Bhopal' },
+    { id: '3', name: 'Gwalior Commercial Complex', status: 'Coming Soon', progress: 0, city: 'Gwalior' },
+  ];
+
+  const canManageProducts = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  const canManageUsers = user?.role === 'ADMIN';
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-slate-200 hidden lg:block p-6">
+        <div className="flex items-center space-x-3 mb-10">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">
+            {user?.name?.[0] || 'T'}
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">{user?.name || 'Admin User'}</p>
+            <p className="text-xs text-slate-500 capitalize">{user?.role?.toLowerCase() || 'Admin'}</p>
+          </div>
+        </div>
+
+        <nav className="space-y-2">
+          {['Overview', 'Site Tracking', 'Inventory', 'Payments', 'Staff Management'].map((item) => (
+            <button
+              key={item}
+              onClick={() => setActiveTab(item)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${
+                activeTab === item ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {item}
+              {activeTab === item && <ChevronRight className="w-4 h-4" />}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-grow p-4 lg:p-10 max-w-7xl mx-auto">
+        {loading && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-slate-600 font-medium">Loading dashboard data...</p>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+            <p className="text-red-600 font-medium">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-red-700 hover:text-red-800 font-medium text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        
+        {!loading && !error && (
+          <>
+            <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
+                <p className="text-slate-500">Welcome back to Toffan Glass Management System.</p>
+              </div>
+              <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-sm font-medium text-slate-700 flex items-center">
+                <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                System Live - MP Region
+              </div>
+            </header>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {stats.map((stat, i) => (
+            <div key={i} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+              <div className={`${stat.color} w-10 h-10 rounded-xl flex items-center justify-center text-white mb-4 shadow-lg shadow-${stat.color.split('-')[1]}/20`}>
+                {/* Fixed: Added type parameter to ReactElement to satisfy cloneElement's prop expectations */}
+                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}
+              </div>
+              <p className="text-slate-500 text-sm mb-1">{stat.label}</p>
+              <p className="text-2xl font-bold text-slate-900">{stat.val}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-10">
+          {/* Site Progress */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-lg font-bold">Active Projects</h2>
+              <button className="text-blue-600 text-sm font-bold hover:underline">View All</button>
+            </div>
+            <div className="space-y-6">
+              {recentSites.map((site) => (
+                <div key={site.id} className="group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h4 className="font-bold text-slate-900">{site.name}</h4>
+                      <p className="text-xs text-slate-500 flex items-center">
+                        <MapPin className="w-3 h-3 mr-1" /> {site.city}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+                      site.status === 'Completed' ? 'bg-green-100 text-green-700' : 
+                      site.status === 'Working' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {site.status}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${site.status === 'Completed' ? 'bg-green-500' : 'bg-blue-500'}`} 
+                      style={{ width: `${site.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Payments */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold mb-8">Recent Transactions</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="pb-4 text-sm font-bold text-slate-400">Project</th>
+                    <th className="pb-4 text-sm font-bold text-slate-400">Amount</th>
+                    <th className="pb-4 text-sm font-bold text-slate-400">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {[
+                    { name: 'Vijay Nagar Mall', amt: '₹45,000', status: 'Paid' },
+                    { name: 'MP Nagar Office', amt: '₹12,500', status: 'Unpaid' },
+                    { name: 'Hotel Gwalior', amt: '₹88,200', status: 'Outstanding' },
+                  ].map((pay, i) => (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-4 font-medium text-slate-900">{pay.name}</td>
+                      <td className="py-4 text-slate-600">{pay.amt}</td>
+                      <td className="py-4">
+                        <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded ${
+                          pay.status === 'Paid' ? 'bg-green-100 text-green-600' : 
+                          pay.status === 'Unpaid' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                        }`}>
+                          {pay.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+        }
+      </main>
+    </div>
+  );
+};
+
+// Helper for icons used in map (needs to be available)
+const MapPin = ({ className }: { className?: string }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+);
+
+export default Dashboard;
