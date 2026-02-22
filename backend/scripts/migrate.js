@@ -1,10 +1,10 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const dotenv = require("dotenv");
 const mysql = require("mysql2/promise");
+const { loadEnv } = require("../src/config/loadEnv");
 
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+loadEnv();
 
 const MIGRATIONS_TABLE = "schema_migrations";
 const MIGRATIONS_DIR = path.resolve(__dirname, "..", "migrations");

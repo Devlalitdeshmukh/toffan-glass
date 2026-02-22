@@ -59,6 +59,12 @@ A modern web application for Toffan Glass Solutions with user authentication, pr
 
 ### Running the Application
 
+Environment separation:
+- Frontend local: `.env.development`
+- Frontend production: `.env.production`
+- Backend local: `backend/.env.development`
+- Backend production: `backend/.env.production`
+
 1. **Start the backend server**
    ```bash
    cd backend
@@ -172,11 +178,19 @@ You can test the application by:
 
 For production deployment:
 
-1. Update environment variables in `.env` file
-2. Use a production database (MySQL/PostgreSQL)
+1. Fill `backend/.env.production` with production DB/JWT/CORS values
+2. Fill root `.env.production` and keep `VITE_API_BASE_URL=/api` when using reverse proxy
 3. Build the frontend: `npm run build`
-4. Serve the built files through a web server
-5. Deploy the backend to a Node.js hosting service
+4. Serve `dist/` with Nginx and proxy `/api` + `/uploads` to backend (`http://127.0.0.1:5000`)
+5. Run backend with PM2 in production mode:
+   `NODE_ENV=production pm2 start src/app.js --name toffan-backend --cwd /home/ubuntu/toffan-glass/backend`
+
+Notes:
+- Backend chooses env file by `NODE_ENV`:
+  - `development` -> `backend/.env.development`
+  - `production` -> `backend/.env.production`
+  - fallback -> `backend/.env`
+- Frontend Vite automatically uses `.env.development` for `npm run dev` and `.env.production` for `npm run build`.
 
 ## Contributing
 

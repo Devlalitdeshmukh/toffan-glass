@@ -512,6 +512,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [stats, setStats] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
@@ -603,6 +604,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         ]);
 
         if (productsResult.success) setProducts(productsResult.products);
+        if (servicesResult.success) setServices(servicesResult.services || []);
         if (usersResult.success) setUsers(usersResult.users);
         if (sitesResult.success) setSites(sitesResult.sites);
         if (inquiriesResult.success) setInquiries(inquiriesResult.inquiries);
@@ -1825,6 +1827,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   cities={cities}
                   customers={paymentCustomers}
                   products={products}
+                  services={services}
                 />
               </div>
             )}
@@ -2320,7 +2323,8 @@ const SiteForm: React.FC<{
   cities: any[];
   customers: any[];
   products: any[];
-}> = ({ onSubmit, onCancel, site, cities, customers, products }) => {
+  services: any[];
+}> = ({ onSubmit, onCancel, site, cities, customers, products, services }) => {
   const getDefaultLineItem = () => ({
     rowKey: `row-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     type: 'PRODUCT',
@@ -2404,11 +2408,18 @@ const SiteForm: React.FC<{
         description: entry.description || '',
         type: entry.type || 'PRODUCT'
       }))
-    : products.map((product: any) => ({
-        name: product.name,
-        description: product.description || '',
-        type: (product.category || '').toLowerCase().includes('service') ? 'SERVICE' : 'PRODUCT'
-      }));
+    : [
+        ...products.map((product: any) => ({
+          name: product.name,
+          description: product.description || '',
+          type: 'PRODUCT'
+        })),
+        ...services.map((service: any) => ({
+          name: service.title || service.name || '',
+          description: service.shortDescription || service.description || '',
+          type: 'SERVICE'
+        }))
+      ].filter((item: any) => item.name);
 
   const normalizeNumber = (value: any) => {
     const parsed = Number(value);
@@ -2650,9 +2661,10 @@ const SiteForm: React.FC<{
                     setFormData((prev) => ({
                       ...prev,
                       userId: e.target.value,
-                      clientName: selected?.name || prev.clientName,
-                      mobileNumber: prev.mobileNumber || selected?.mobile || '',
-                      email: prev.email || selected?.email || ''
+                      clientName: selected?.name || '',
+                      mobileNumber: selected?.mobile || '',
+                      email: selected?.email || '',
+                      lineItems: [getDefaultLineItem()]
                     }));
                     setErrors((prev) => ({ ...prev, userId: '' }));
                   }}
@@ -3812,7 +3824,8 @@ const SettingsSection: React.FC<{
     setSavingPassword(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+      const response = await fetch(`${apiBaseUrl}/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

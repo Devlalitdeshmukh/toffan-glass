@@ -1,8 +1,8 @@
 const { testConnection, initializeDatabase } = require("./src/config/db");
-const dotenv = require("dotenv");
+const { loadEnv } = require("./src/config/loadEnv");
 
 // Load environment variables
-dotenv.config();
+loadEnv();
 
 const init = async () => {
   try {

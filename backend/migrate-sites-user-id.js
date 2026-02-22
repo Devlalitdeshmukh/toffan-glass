@@ -1,7 +1,8 @@
-const dotenv = require('dotenv');
-const { pool } = require('./src/config/db');
+const { loadEnv } = require('./src/config/loadEnv');
 
-dotenv.config();
+loadEnv();
+
+const { pool } = require('./src/config/db');
 
 const migrate = async () => {
   const connection = await pool.getConnection();

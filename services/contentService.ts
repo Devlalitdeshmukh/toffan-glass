@@ -1,6 +1,8 @@
 import { ContentPage } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/content';
+const API_BASE_URL =
+  import.meta.env.VITE_CONTENT_API_URL ||
+  `${import.meta.env.VITE_API_BASE_URL || '/api'}/content`;
 
 interface ContentPageResponse {
   success: boolean;

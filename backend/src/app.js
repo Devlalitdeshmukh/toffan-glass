@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { loadEnv } = require('./config/loadEnv');
 
 // Load environment variables
-dotenv.config();
+loadEnv();
 
 // Import database connection
 const { pool } = require('./config/db');
@@ -22,8 +22,29 @@ const siteRoutes = require('./routes/siteRoutes');
 // Initialize app
 const app = express();
 
+const rawCorsOrigins = process.env.CORS_ORIGIN || '';
+const allowedCorsOrigins = rawCorsOrigins
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const corsOptions = allowedCorsOrigins.length
+    ? {
+        origin: (origin, callback) => {
+            if (!origin || allowedCorsOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            return callback(new Error('Not allowed by CORS'));
+        },
+        credentials: true
+    }
+    : {
+        origin: true,
+        credentials: true
+    };
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -198,7 +219,8 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
     console.log(`🚀 Toffan Glass Backend Server running on port ${PORT}`);
-    console.log(`🏥 Health check: http://localhost:5000/api/health`);
+    const publicApiUrl = process.env.PUBLIC_API_URL || `http://localhost:${PORT}`;
+    console.log(`🏥 Health check: ${publicApiUrl}/api/health`);
 });
 
 module.exports = app;

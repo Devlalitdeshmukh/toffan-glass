@@ -197,10 +197,11 @@ export const getAvatarColor = (seed: string): string => {
 export const getImageUrl = (path: string | null | undefined): string => {
   if (!path) return '/upload/no_record_found.png';
   if (path.startsWith('/upload/')) return path;
+  if (path.startsWith('/uploads/')) return path;
   if (path.startsWith('http')) return path;
   if (path.startsWith('blob:')) return path;
-  // Prepend backend URL for relative paths (assuming backend runs on :5000)
-  return `http://localhost:5000${path.startsWith('/') ? '' : '/'}${path}`;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+  return `${backendUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 export const debounce = <T extends (...args: any[]) => any>(
